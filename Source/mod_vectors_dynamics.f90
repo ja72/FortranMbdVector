@@ -13,8 +13,8 @@
         gravity = vector3(0.0_wp, 0.0_wp, -10.0_wp)      ! gravity [m/s�]
     
     ! Simulation parameters
-    integer, parameter :: state_size = 13
-    
+    integer, parameter :: state_size = 13, report_count = 36
+        
     ! Rigid Body Definition
     type :: rigid_body
         class(shapes), allocatable :: shape
@@ -29,14 +29,42 @@
         procedure :: set_pose => rb_set_cg_pose
         procedure :: set_motion => rb_set_cg_motion
         procedure :: get_motion => rb_get_motion
-        procedure :: contact => rb_contact_calc
         procedure :: integrate => rb_integrate
         procedure :: simulate => rb_simulate
     end type
     
     interface rigid_body
-    procedure :: rb_from_shape, rb_new
+        module procedure :: rb_from_shape, rb_new
     end interface
+    
+    type :: contact_plane
+        real(wp) :: epsilon, mu
+        type(vector3) :: origin
+        type(vector3) :: normal
+        type(vector3) :: slip
+        real(wp) :: delta, v_imp, Jn
+        real(wp) :: v_slip, Js
+        logical :: active
+    contains
+        procedure :: contact => ctx_contact_calc    
+        procedure :: reset => ctx_reset
+    end type
+        
+    interface contact_plane
+        module procedure :: ctx_new_plane
+    end interface
+    
+    interface 
+        subroutine step_handler(i,n,t,Y,ctx)
+        import
+        integer, intent(in) :: i,n
+        real(wp), intent(in) :: t, Y(:)
+        type(contact_plane), intent(in) :: ctx
+        end subroutine
+    end interface
+    
+    character(len=*), parameter :: fmth = '(a9  ,"|", 3a9  ,"|", 4a9  ,"|",3a9  ,"|", 3a10  ,"|", a8)'
+    character(len=*), parameter :: fmtv = '(f9.3,"|", 3f9.5,"|", 4f9.4,"|",3f9.5,"|", 3f10.6,"|", f8.4)'    
         
     contains
     
@@ -192,20 +220,48 @@
         Y_next = Y + (h/6)*(k0+2*k1+2*k2+k3)
         call y_normalize(Y_next)
     end function
+    
+    pure function ctx_new_plane(origin,normal,epsilon,mu) result(ctx)
+    type(contact_plane) :: ctx
+    real(wp),intent(in) :: epsilon, mu
+    type(vector3),intent(in) :: origin
+    type(vector3),intent(in) :: normal    
+        ctx%epsilon = epsilon
+        ctx%mu = mu
+        ctx%origin = origin
+        ctx%normal = normal
+        ctx%slip   = o_
+        ctx%delta  = 0.0_wp
+        ctx%v_imp  = 0.0_wp
+        ctx%Jn     = 0.0_wp
+        ctx%v_slip = 0.0_wp
+        ctx%Js     = 0.0_wp
+        ctx%active = .false.
+    end function
+    
+    pure subroutine ctx_reset(ctx)
+    class(contact_plane), intent(inout) :: ctx
+        ctx%slip   = o_
+        ctx%delta  = 0.0_wp
+        ctx%v_imp  = 0.0_wp
+        ctx%Jn     = 0.0_wp
+        ctx%v_slip = 0.0_wp
+        ctx%Js     = 0.0_wp
+        ctx%active = .false.
+    end subroutine
         
-    pure function rb_contact_calc(rb, Y, origin, n) result(Y_next)
-    class(rigid_body), intent(in) :: rb
+    function ctx_contact_calc(ctx, rb, Y) result(Y_next)
+    class(contact_plane), intent(inout) :: ctx
+    type(rigid_body), intent(in) :: rb
     real(wp), intent(in) :: Y(state_size)
-    type(vector3), intent(in) :: origin, n
     real(wp) :: Y_next(state_size)
     type(vector3) :: p, L_b, omg, vee_b, pos_b
     type(quaternion) :: ori, qp
-    type(vector3) :: c, r_A, c_A, v_A, J_imp, e_slip
+    type(vector3) :: c, r_A, c_A, v_A, J_imp
     type(matrix3) :: R, I_inv, cx, M_inv
-    real(wp) :: s, e, d, m_eff, v_imp, v_slip, Jn, Je, m_slip
+    real(wp) :: s, e, m_eff, m_slip
     logical :: active
-    
-        
+            
         ! Body motions
         pos_b = Y(1:3)
         ori = Y(4:7) 
@@ -218,40 +274,40 @@
         vee_b = p/rb%mass - cross(omg, c)
         
         ! contact point on surface of shape
-        r_A = pos_b + c + rb%shape%nearest_point(n, R)
-        d = dot(n, r_A - origin)
+        r_A = pos_b + c + rb%shape%nearest_point(ctx%normal, R)
+        ctx%delta = dot(ctx%normal, r_A - ctx%origin)
         ! clip contact point on plane
-        r_A = r_A - min(d,0.0_wp)*n
+        r_A = r_A - min(ctx%delta,0.0_wp)*ctx%normal
                 
         ! get contact distance and speed
         v_A = vee_b + cross(omg, r_A - pos_b)
-        v_imp = dot(n, v_A)
+        ctx%v_imp = dot(ctx%normal, v_A)
         
-        active = d<=0 .and. v_imp < 0
+        ctx%active = ctx%delta<=0 .and. ctx%v_imp < 0
         
-        if(active) then
+        if(ctx%active) then
             ! location of CG relative to contact point
             c_A = pos_b + c - r_A
             cx = cross(c_A)
             ! move inv inertia to contact point
             M_inv = (1/rb%mass) * eye_ - cx*I_inv*cx
-            m_eff = 1/dot(n, M_inv*n)
-            Jn = -(1+eps)*m_eff*v_imp
+            m_eff = 1/dot(ctx%normal, M_inv*ctx%normal)
+            ctx%Jn = -(1+ctx%epsilon)*m_eff*ctx%v_imp
             
-            e_slip = v_A - v_imp * n
-            v_slip = norm2(e_slip)
-            if( abs(v_slip) < tiny ) then
-                e_slip = o_
-                v_slip = 0.0_wp
-                Je = 0.0_wp
+            ctx%slip = v_A - ctx%v_imp * ctx%normal
+            ctx%v_slip = norm2(ctx%slip)
+            if( abs(ctx%v_slip) < tiny ) then
+                ctx%slip = o_
+                ctx%v_slip = 0.0_wp
+                ctx%Js = 0.0_wp
             else
-                e_slip = -e_slip/v_slip
-                m_slip = 1/dot(e_slip, M_inv*e_slip)
-                Je = m_slip*v_slip
-                Je = min(mu*Jn, Je)
+                ctx%slip = -ctx%slip/ctx%v_slip
+                m_slip = 1/dot(ctx%slip, M_inv*ctx%slip)
+                ctx%Js = m_slip*ctx%v_slip
+                ctx%Js = min(ctx%mu*ctx%Jn, ctx%Js)
             end if
                         
-            J_imp = Jn*n + Je*e_slip
+            J_imp = ctx%Jn*ctx%normal + ctx%Js*ctx%slip
             p = p + J_imp
             L_b = L_b + cross(r_A-pos_b, J_imp)
             
@@ -261,38 +317,50 @@
                 p%x, p%y, p%z, &
                 L_b%x, L_b%y, L_b%z]
         else
+            ctx%slip   = o_
+            ctx%Jn     = 0.0_wp
+            ctx%v_slip = 0.0_wp
+            ctx%Js     = 0.0_wp
             Y_next = Y
         end if
     end function        
     
-    pure function rb_simulate(rb, t_end, n_steps) result(results)
+    function rb_simulate(rb, t_end, n_steps, update) result(results)
     class(rigid_body), intent(in) :: rb
     integer, intent(in) :: n_steps
     real(wp), intent(in) :: t_end
     real(wp), allocatable :: results(:, :)
+    procedure(step_handler), intent(in), pointer, optional :: update
     real(wp) :: h, t, h_next
     real(wp) :: Y(state_size), Y_next(state_size)    
-    type(vector3) :: n_floor, pos_floor, Jn
+    type(contact_plane) :: floor
     integer :: step
-    
+    logical :: report
+        
+        report = present(update)
+        
         allocate(results(0:n_steps, state_size+2))
-        n_floor = k_
-        pos_floor = o_
+        
+        floor = contact_plane(o_, k_, eps, mu)
         h = t_end/n_steps
         t = 0.0_wp
         Y_next = rb_get_initial_state(rb)
-        Y = rb%contact(Y_next, pos_floor, n_floor)
-        Jn = vector3( Y(8:10) - Y_next(8:10) )
+        Y = floor%contact(rb, Y_next)
         step = 0
-        results(0, :) = [t, Y, norm2(Jn)]
+        results(0, :) = [t, Y, floor%Jn]        
+        if(report) then
+            call update(step, n_steps, t, Y, floor)
+        end if
         do while( step<n_steps )
             h_next = min(h, t_end-t)
             Y_next = rb%integrate(t, Y, h_next)
-            Y = rb%contact(Y_next, pos_floor, n_floor)
-            Jn = vector3( Y(8:10) - Y_next(8:10) )
+            Y = floor%contact(rb, Y_next)
             t = t + h_next
             step = step + 1
-            results(step, :) = [t, Y, norm2(Jn)]
+            if(report) then
+                call update(step, n_steps, t, Y, floor)
+            end if
+            results(step, :) = [t, Y, floor%Jn]
         end do        
     end function
     
@@ -314,16 +382,10 @@
     character(1) :: key
     integer, parameter :: ESC = 27
 
-    character(len=:), allocatable :: fmth
-    character(len=:), allocatable :: fmtv
     class(rigid_body), allocatable :: body
         
     call RANDOM_SEED()
-    
-    
-    fmth = '(a9  ,"|", 3a9  ,"|", 4a9  ,"|",3a9  ,"|", 3a10  ,"|", a8)'
-    fmtv = '(f9.3,"|", 3f9.5,"|", 4f9.4,"|",3f9.5,"|", 3f10.6,"|", f8.4)'
-
+        
     body = rigid_body( shapes(cylinder, [D/2, L]), steel_density )
     
     pos = (L/2)*k_                              ! initial position [m]
@@ -342,10 +404,6 @@
     end if
     t_end = n_steps * h    
             
-    call SYSTEM_CLOCK(tic,cpurate)    
-    Y = body%simulate(t_end, n_steps)    
-    call SYSTEM_CLOCK(toc,cpurate)
-        
     print (fmth), &
         "time", &
         "pos-x", "pos-y","pos-z", &
@@ -365,14 +423,11 @@
         "---", "---", "---", "---", &
         "---", "---", "---", &
         "---", "---", "---", "---"
-    
-    n = size(Y, 1)
-    do i=1,n
-        if( i==n .or. mod(i-1, n/36) ==0 ) then
-            print (fmtv), Y(i,1), Y(i,2:4), Y(i,5:8), Y(i,9:11), 1000*Y(i,12:14), Y(i, 15)
-        end if
-    end do
-    
+        
+    call SYSTEM_CLOCK(tic,cpurate)    
+    Y = body%simulate(t_end, n_steps, sim_update)    
+    call SYSTEM_CLOCK(toc,cpurate)
+            
     cpu = real(toc-tic)/cpurate
     ops = n_steps / cpu
     
@@ -380,6 +435,15 @@
     print '(1x,"steps=",g0,1x,"time=",g0,1x,"kops=",g0)', n_steps, cpu, ops/1000
     
     
+    end subroutine
+    
+    subroutine sim_update(i,n,t,Y,ctx)
+    integer, intent(in) :: i,n
+    real(wp), intent(in) :: t, Y(:)
+    type(contact_plane), intent(in) :: ctx
+        if( i==n .or. mod(i, n/report_count) ==0 ) then
+            write (*, fmtv) t, Y(1:3), Y(4:7), Y(8:10), 1000*Y(11:13), ctx%Jn
+        end if    
     end subroutine
     
     end module
