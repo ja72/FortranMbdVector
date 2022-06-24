@@ -10,12 +10,12 @@
     
     
     type(vector3), parameter :: &
-        gravity = vector3(0.0_wp, 0.0_wp, -10.0_wp)      ! gravity [m/s²]
+        gravity = vector3(0.0_wp, 0.0_wp, -10.0_wp)      ! gravity [m/sï¿½]
     
     ! Simulation parameters
     integer, parameter :: state_size = 13
     
-    ! Generic geometry for body
+    ! Rigid Body Definition
     type :: rigid_body
         class(shapes), allocatable :: shape
         real(wp) :: mass, mmoi(3)
