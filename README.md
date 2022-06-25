@@ -8,11 +8,13 @@ Fortran application for the dynamic simulation a single rigid body. Some of the 
  - Speed is about 2M simulation steps per second.
  - Mass properties derived from shape definition (also used in contacts)
 
+Application is also ported to CSharp for comparison of speed and accuracy.
+
 ### Screenshot
 
 ![image](https://user-images.githubusercontent.com/22509289/175482233-1c1a6f26-f70d-427c-875c-7e36c8330258.png)
 
-### User Types
+### Fortraan User Types
 
 ```fortran
 
@@ -67,11 +69,37 @@ Fortran application for the dynamic simulation a single rigid body. Some of the 
         procedure :: set_pose => rb_set_cg_pose
         procedure :: set_motion => rb_set_cg_motion
         procedure :: get_motion => rb_get_motion
-        procedure :: contact => rb_contact_calc
-        procedure :: integrate => rb_integrate
-        procedure :: simulate => rb_simulate
+        procedure :: est_max_time_step => rb_get_max_time_step
+    end type
+    
+    ! Contact Surface Definition
+    type :: contact_plane
+        real(wp) :: epsilon, mu
+        type(vector3) :: origin
+        type(vector3) :: normal
+        type(vector3) :: slip
+        real(wp) :: delta, v_imp, Jn
+        real(wp) :: v_slip, Js
+        logical :: active
+    contains
+        procedure :: calculate => ctx_calculate
+        procedure :: reset => ctx_reset
+    end type
+        
+    ! Simulation contains 1 body and 1 contact
+    type :: simulation
+        type(rigid_body) :: body
+        type(contact_plane) :: contact
+        type(vector3) :: gravity
+        integer :: step
+        real(wp) :: time
+        real(wp), dimension(state_size) :: current
+        procedure(step_handler), pointer :: step_taken
+    contains
+        procedure :: reset => sim_reset
+        procedure :: run => sim_run
+        procedure :: integrate => sim_integrate
     end type
     
 ```
-
 
