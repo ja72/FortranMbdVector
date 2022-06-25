@@ -27,6 +27,7 @@
         module procedure :: rb_from_shape, rb_new
     end interface
     
+    ! Contact Surface Definition
     type :: contact_plane
         real(wp) :: epsilon, mu
         type(vector3) :: origin
@@ -44,6 +45,7 @@
         module procedure :: ctx_new_plane
     end interface
     
+    ! Simulation contains 1 body and 1 contact
     type :: simulation
         type(rigid_body) :: body
         type(contact_plane) :: contact
@@ -106,6 +108,8 @@
     end function
     
     pure function rb_get_max_time_step(rb, n_steps, end_time, angularResolutionDegrees) result(h)
+    ! Find maximum time step based on recommended angular resolution for rotating
+    ! bodies. Defaults to 1 deg of rotation per frame.
     class(rigid_body), intent(in) :: rb
     integer, intent(in) :: n_steps
     real(wp), intent(in), optional :: end_time, angularResolutionDegrees
@@ -145,12 +149,17 @@
     end subroutine
         
     pure function rb_get_state(rb, pos_b, ori, vee_b, omg) result(Y)
+    ! Calculate body state from motion vectors
     class(rigid_body), intent(in) :: rb
     type(vector3), intent(in) :: pos_b, vee_b, omg
     type(quaternion), intent(in) :: ori
     real(wp):: Y(state_size)
     type(vector3) :: p, L_b, c
     type(matrix3) :: R, I_c
+        !tex: Get momentum at reference point from motion
+            ! $$\begin{aligned}\vec{p} & =m\left(\vec{v}_{b}+\vec{\omega}\times\vec{c}\right)\\
+            !\vec{L}_{b} & ={\rm I}_{c}\vec{\omega}+\vec{c}\times\vec{p}
+            !\end{aligned}$$    
         R = rot(ori)
         c = R * rb%cg
         I_c = R*diag(rb%mmoi)*R%transpose()
@@ -174,6 +183,7 @@
     end function
     
     pure subroutine rb_get_motion(rb, Y, vee_b, omg)
+    ! Calculate motion vectors from body state
     class(rigid_body), intent(in) :: rb
     real(wp), intent(in) :: Y(state_size)
     type(vector3), intent(out) :: vee_b
@@ -181,7 +191,10 @@
     type(vector3) :: c, p, L_b
     type(quaternion) :: ori
     type(matrix3) :: R, I_inv
-    
+        !tex: Get motion from momentum
+        ! $$\begin{aligned}\vec{v}_{b} & =\tfrac{1}{m}\vec{p}-\vec{\omega}\times\vec{c}\\
+        !\vec{\omega} & ={\rm I}_{c}^{-1}\left(\vec{L}_{b}-\vec{c}\times\vec{p}\right)
+        !\end{aligned}$$
         ori = Y(4:7)
         p = Y(8:10)
         L_b = Y(11:13)
@@ -199,6 +212,9 @@
     end subroutine
     
     pure function rb_get_rate(rb, t, Y, gee) result(Yp)
+    ! Calculate the body state time derivative Yp=f(t,Y)
+    ! NOTE: Needs input from simulation conditions for
+    ! gravity field (gee) for weight calculation.
     class(rigid_body), intent(in) :: rb
     real(wp), intent(in) :: t, Y(state_size)
     type(vector3), intent(in) :: gee
@@ -313,33 +329,42 @@
             m_eff = 1/dot(ctx%normal, M_inv*ctx%normal)
             ctx%Jn = -(1+ctx%epsilon)*m_eff*ctx%v_imp
             
+            ! Find sliding velociy properties
             ctx%slip = v_A - ctx%v_imp * ctx%normal
             ctx%v_slip = norm2(ctx%slip)
             if( abs(ctx%v_slip) < tiny ) then
+                ! negligible sliding velocity
+                ! NOTE: sticking isn't implemented yet
                 ctx%slip = o_
                 ctx%v_slip = 0.0_wp
                 ctx%Js = 0.0_wp
             else
+                ! non-neglible sliding velocity
                 ctx%slip = -ctx%slip/ctx%v_slip
                 m_slip = 1/dot(ctx%slip, M_inv*ctx%slip)
+                ! find sliding impulse to stop the movement
                 ctx%Js = m_slip*ctx%v_slip
+                ! cap sliding impulse to traction limit
                 ctx%Js = min(ctx%mu*ctx%Jn, ctx%Js)
             end if
                         
+            ! Combined impulse included normal and sliding components
             J_imp = ctx%Jn*ctx%normal + ctx%Js*ctx%slip
             p = p + J_imp
             L_b = L_b + cross(r_A-pos_b, J_imp)
-            
+            ! Return new body state with upadted momenta
             Y_next = [ &
                 pos_b%x, pos_b%y, pos_b%z, &
                 ori%vector%x, ori%vector%y, ori%vector%z, ori%scalar, &
                 p%x, p%y, p%z, &
                 L_b%x, L_b%y, L_b%z]
         else
+            ! Contat not active
             ctx%slip   = o_
             ctx%v_slip = 0.0_wp
             ctx%Jn     = 0.0_wp
             ctx%Js     = 0.0_wp
+            ! Return body state unmodified
             Y_next = Y
         end if
     end function        
@@ -371,6 +396,7 @@
     end subroutine
     
     pure function sim_integrate(sim, h) result(Y_next)
+    ! Implement RK4 integrator for rigid bodies
     class(simulation), intent(in) :: sim
     real(wp), intent(in) :: h
     real(wp), dimension(state_size) :: Y_next, Y1, Y2, Y3
@@ -396,7 +422,7 @@
     real(wp) :: h, h_next
     real(wp), dimension(state_size) :: next
     integer :: n
-        
+        ! loop integrator and contact until end time is reached
         if( associated(sim%step_taken)) then
             call sim%step_taken(n_steps)
         end if
