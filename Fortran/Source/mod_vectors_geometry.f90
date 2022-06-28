@@ -1,4 +1,4 @@
-    module mod_vectors_geometry
+    module mod_vectors_shapes
     use mod_vectors_matrix3
     implicit none
     

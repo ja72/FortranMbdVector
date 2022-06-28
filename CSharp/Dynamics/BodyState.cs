@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 
 namespace JA.Dynamics
 {
+    using JA.LinearAlgebra;
     using static DoubleConstants;
-    using static Dynamics;
+    using static LinearAlgebra.LinearAlgebra;
+
     public unsafe struct BodyState :
         System.Collections.ICollection,
         ICollection<double>,

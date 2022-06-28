@@ -7,9 +7,11 @@ using JA.Dynamics;
 
 namespace JA.Geomtery
 {
+    using JA.LinearAlgebra;
+
     using static Math;
     using static DoubleConstants;
-    using static Dynamics.Dynamics;
+    using static LinearAlgebra.LinearAlgebra;
 
     public enum KnownShape
     {

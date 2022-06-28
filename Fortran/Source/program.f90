@@ -7,7 +7,7 @@
 !****************************************************************************
 
     program FortranMbdVector
-    use mod_vectors_dynamics
+    use mod_vectors_simulation
     implicit none
     
     integer, parameter :: report_count = 36
@@ -20,7 +20,7 @@
     integer :: lu, du, ios
     
     !call mbd_solver(9*36)
-    call mbd_solver(360*100)
+    call mbd_solver(360*1000)
     
     contains
     

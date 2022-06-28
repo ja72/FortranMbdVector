@@ -2,6 +2,8 @@
 
 namespace JA.Dynamics
 {
+    using JA.LinearAlgebra;
+
     public readonly struct Results
     {
         public Results(RigidBody body, int step, double time, BodyState state) : this()

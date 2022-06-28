@@ -4,15 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.IO;
 
 namespace JA
 {
-    using System.IO;
+    using JA.LinearAlgebra;
     using JA.Dynamics;
     using JA.Geomtery;
 
     using static DoubleConstants;
-    using static Dynamics.Dynamics;
+    using static LinearAlgebra.LinearAlgebra;
 
     internal class Program
     {
@@ -22,10 +23,11 @@ namespace JA
         static void Main(string[] args)
         {
             //MbdSolver(9*36);
-            MbdSolver(360 * 100);
+            MbdSolver(360 * 1000);
+
         }
 
-        public static void MbdSolver(int n_steps, double endTime = 2.0, double angularResolutionDegrees = 0.5)
+        public static IReadOnlyList<Results> MbdSolver(int n_steps, double endTime = 2.0, double angularResolutionDegrees = 0.5)
         {
             const double L = 90 * mm;
             const double D = 60 * mm;
@@ -86,6 +88,7 @@ namespace JA
             Console.WriteLine();
             Console.WriteLine($" steps={n_steps} time={cpu} kops={ops / 1000}");
 
+            return mbd.History;
         }
 
 

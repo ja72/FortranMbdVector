@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace JA.Dynamics
 {
+    using JA.LinearAlgebra;
+
     using static Math;
     using static DoubleConstants;
-    using static Dynamics;
+    using static LinearAlgebra.LinearAlgebra;
+
     public class ContactPlane
     {
         public ContactPlane(Vector3 position, Vector3 normal, double epsilon=0, double mu=0)

@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 namespace JA.Dynamics
 {
     using JA.Geomtery;
+    using JA.LinearAlgebra;
 
     using static Math;
     using static DoubleConstants;
-    using static Dynamics;
+    using static LinearAlgebra.LinearAlgebra;
 
     public class RigidBody
     {
