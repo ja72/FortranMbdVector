@@ -23,7 +23,7 @@ namespace JA
         static void Main(string[] args)
         {
             //MbdSolver(9*36);
-            MbdSolver(360 * 1000);
+            MbdSolver(360 * 2250, 2.0);
 
         }
 

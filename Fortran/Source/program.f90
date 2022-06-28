@@ -20,7 +20,7 @@
     integer :: lu, du, ios
     
     !call mbd_solver(9*36)
-    call mbd_solver(360*1000)
+    call mbd_solver(360*2250, 2.0_wp)
     
     contains
     
