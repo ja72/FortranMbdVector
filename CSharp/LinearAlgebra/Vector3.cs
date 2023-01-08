@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace JA.LinearAlgebra
 {
+    using static Math;
     using static DoubleConstants;
     using static LinearAlgebra;
 
@@ -65,6 +66,16 @@ namespace JA.LinearAlgebra
             x = data.x;
             y = data.y;
             z = data.z;
+        }
+
+        public double MaxValue() => Max(data.x, Max(data.y, data.z));
+        public double MinValue() => Min(data.x, Min(data.y, data.z));
+        public Vector3 Ordered()
+        {
+            var x_min = MinValue();
+            var x_max = MaxValue();
+            var x_mid = this.Where((x) => x != x_min && x != x_max).FirstOrDefault();
+            return new Vector3(x_min, x_mid, x_max);
         }
         #endregion
 
@@ -186,6 +197,18 @@ namespace JA.LinearAlgebra
         public string ToString(string format, IFormatProvider provider)
         {
             return $"({X.ToString(format, provider)},{Y.ToString(format, provider)},{Z.ToString(format, provider)})";
+        }
+        public string ToCSVRow() => string.Join(",", X, Y, Z);
+        public static string GetCSVHead(string prefix = null, string subscript=null)
+        {
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                return Common.VariableNames(prefix, "x,y,z", subscript);
+            }
+            else
+            {
+                return Common.VariableNames(string.Empty, "x,y,z", subscript);
+            }
         }
         #endregion
 

@@ -9,7 +9,7 @@
         enumerator :: z_axis = 3
     end enum
     
-    type :: vector3
+    type :: vector3        
         real(wp) :: x,y,z
     contains
         procedure :: to_array => vec3_to_array
@@ -55,10 +55,10 @@
     module procedure :: vec3_cross
     end interface
 
-    type(vector3), parameter :: o_ = vector3(0.0_wp,0.0_wp,0.0_wp)
-    type(vector3), parameter :: i_ = vector3(1.0_wp,0.0_wp,0.0_wp)
-    type(vector3), parameter :: j_ = vector3(0.0_wp,1.0_wp,0.0_wp)
-    type(vector3), parameter :: k_ = vector3(0.0_wp,0.0_wp,1.0_wp)
+    !type(vector3), parameter :: o_ = vector3(0.0_wp,0.0_wp,0.0_wp)
+    !type(vector3), parameter :: i_ = vector3(1.0_wp,0.0_wp,0.0_wp)
+    !type(vector3), parameter :: j_ = vector3(0.0_wp,1.0_wp,0.0_wp)
+    !type(vector3), parameter :: k_ = vector3(0.0_wp,0.0_wp,1.0_wp)
 
     contains
 

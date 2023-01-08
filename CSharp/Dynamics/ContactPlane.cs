@@ -14,7 +14,9 @@ namespace JA.Dynamics
 
     public class ContactPlane
     {
-        public ContactPlane(Vector3 position, Vector3 normal, double epsilon=0, double mu=0)
+        private Vector3 normal;
+
+        public ContactPlane(Vector3 position, Vector3 normal, double epsilon = 0, double mu = 0)
         {
             Position = position;
             Normal = normal.ToUnit();
@@ -24,14 +26,14 @@ namespace JA.Dynamics
         }
 
         public Vector3 Position { get; set; }
-        public Vector3 Normal { get; set; }
-
+        public Vector3 Normal { get => normal; set => normal = value.ToUnit(); }
+        public bool IsOk { get => Normal.Magnitude > 0; }
         public double Epsilon { get; set; }
         public double Mu { get; set; }
         public Vector3 Slip { get; private set; }
         public double Delta { get; private set; }
         public double Vimp { get; private set; }
-        public double Vslip{ get; private set; }
+        public double Vslip { get; private set; }
         public double Jn { get; private set; }
         public double Js { get; private set; }
         public bool Active { get; private set; }
@@ -51,14 +53,15 @@ namespace JA.Dynamics
         {
             (Vector3 pos_b, Quaternion ori, Vector3 p, Vector3 L_b) = Y;
             Matrix3 R = ori.ToRotation();
+            Matrix3 Rt = ori.ToRotation(inverse: true);
             Vector3 c = R * rb.Cg;
             var (I_1, I_2, I_3) = rb.MMoi;
-            Matrix3 I_inv = R * Matrix3.Diagonal(1 / I_1, 1 / I_2, 1 / I_3) * R.Transpose();
+            Matrix3 I_inv = R * Matrix3.Diagonal(1 / I_1, 1 / I_2, 1 / I_3) * Rt;
             Vector3 omega = I_inv * (L_b - (c ^ p));
             Vector3 vee_b = p / rb.Mass - (omega ^ c);
 
             // Contact point on surface of shape
-            Vector3 r_A = pos_b + c + rb.Shape.GetNearestPoint(Normal, R);
+            Vector3 r_A = pos_b + c + R * rb.Shape.GetNearestPoint(Rt * Normal);
             Delta = Dot(Normal, r_A - Position);
             // Clip contact point on plane
             r_A -= Min(Delta, 0) * Normal;

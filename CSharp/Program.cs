@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
+    using System.Runtime.InteropServices;
 
 namespace JA
 {
@@ -15,6 +16,13 @@ namespace JA
     using static DoubleConstants;
     using static LinearAlgebra.LinearAlgebra;
 
+    internal static class Fortran
+    {
+        [DllImport("FortranMbdVector.exe", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        //internal static extern void sim_export([In] vec3 gravity, int n_steps, double t_end, string f_export, ref int f_export_length);
+        internal static extern void sim_export([In] ref double gravity);
+    }
+
     internal class Program
     {
         public const int ReportCount = 36;
@@ -23,18 +31,31 @@ namespace JA
         static void Main(string[] args)
         {
             //MbdSolver(9*36);
-            MbdSolver(360 * 2250, 2.0);
+            //MbdSolver(360 * 2250, 2.0);
 
+            //var results = FreeSolver(360 * 2250, 2.0);
+
+            FortranSolver(360, 2.0);
         }
 
-        public static IReadOnlyList<Results> MbdSolver(int n_steps, double endTime = 2.0, double angularResolutionDegrees = 0.5)
+        public static void FortranSolver(int n_steps, double endTime)
         {
-            const double L = 90 * mm;
-            const double D = 60 * mm;
+            string f_export = "results-cs-f.csv";
+            int f_export_length = f_export.Length;
+            double[] gravity = new double[] { 0, 0, -10 };
+            //Fortran.sim_export(gravity, n_steps, endTime, f_export, ref f_export_length);
+            Fortran.sim_export(ref gravity[0]);
+        }
+
+        public static IReadOnlyList<Results> MbdSolver(int n_steps, double endTime)
+        {
             const double ε = 0.87;
             const double μ = 0.15;
             Console.WriteLine($" CSharp {n_steps,12} steps.");
             Console.WriteLine();
+
+            const double L = 90 * mm;
+            const double D = 60 * mm;
 
             RigidBody rb = new RigidBody(Shapes.CylinderAlongZ(L, D / 2), mass: 2.0);
 
@@ -50,26 +71,26 @@ namespace JA
 
             Simulation mbd = new Simulation(rb, floor, Gravity);
 
-            double h = rb.EstMaxTimeStep(n_steps, endTime, angularResolutionDegrees);
+            double h = rb.EstMinTimeStep(n_steps, endTime);
             endTime = n_steps * h;
 
-            Console.WriteLine(GetTableHeader());
+            Console.WriteLine(Simulation.GetTableHeader());
 
             bool output = false;
-            StringWriter io = null; 
+            StringWriter io = null;
             if (output)
             {
                 io = new StringWriter();
-                io.WriteLine(GetCsvHeader());
+                io.WriteLine(Simulation.GetCsvHeader());
             }
             mbd.StepTaken += (s, ev) =>
             {
                 var sim = ev.Simulation;
                 if (sim.Step == n_steps || (sim.Step % (n_steps / ReportCount) == 0))
                 {
-                    Console.WriteLine(GetTableRow(sim));
+                    Console.WriteLine(sim.GetTableRow());
                 }
-                io?.WriteLine(GetCsvRow(sim));
+                io?.WriteLine(sim.GetCsvRow());
             };
 
             var sw = Stopwatch.StartNew();
@@ -91,84 +112,74 @@ namespace JA
             return mbd.History;
         }
 
-
-        public static string GetTableHeader()
+        public static IReadOnlyList<Results> FreeSolver(int n_steps, double endTime)
         {
-            const string fmt = "{0,9} {1,9}|{2,9}{3,9}{4,9}|{5,9}{6,9}{7,9}{8,9}|{9,9}{10,9}{11,9}|{12,10}{13,10}{14,10}|{15,8}";
-            var line1 = new object[] { "#", "time",
-                "pos-x", "pos-y", "pos-z",
-                "ori-x", "ori-y", "ori-z", "ori-w",
-                "mom-x", "mom-y", "mom-z",
-                "ang-x", "ang-y", "ang-z",
-                "J" };
-            var line2 = new object[] { "", "[s]",
-                "[m]", "[m]", "[m]",
-                "[]", "[]", "[]", "[]",
-                "[kg m/s]", "[kg m/s]", "[kg m/s]",
-                "[g m^2/s]", "[g m^2/s]", "[g m^2/s]",
-                "[N s]" };
-            var line3 = new object[] { "---",  "---",
-                "---", "---", "---",
-                "---", "---", "---", "---",
-                "---", "---", "---",
-                "---", "---", "---",
-                "---" };
+            const double L = 90 * mm;
+            const double D = 60 * mm;
 
-            var sb = new StringBuilder();
-            sb.AppendFormat(fmt, line1);
-            sb.AppendLine();
-            sb.AppendFormat(fmt, line2);
-            sb.AppendLine();
-            sb.AppendFormat(fmt, line3);
+            RigidBody rb = new RigidBody(Shapes.CylinderAlongZ(L, D / 2), mass: 2.0);
 
-            return sb.ToString();
+            Vector3 pos = L / 2 * k_;
+            Quaternion ori = q_eye;
+            Vector3 omg = 5 * j_ - 1 * k_;
+            Vector3 vee = (0.0) * k_;
+
+            rb.SetPoseAtCg(pos, ori);
+            rb.SetMotionAtCg(vee, omg);
+            Simulation mbd = new Simulation(rb, null, Vector3.Zero);
+            mbd.Run(endTime, 360);
+            Console.WriteLine(Results.GetTableHeader());
+            foreach (var item in mbd.History)
+            {
+                if (item.Step % 15 == 0)
+                {
+                    Console.WriteLine(item.GetTableRow());
+                }
+            }
+
+            Console.WriteLine("Checking Accuracy of Simulation.");
+
+            bool output = true;
+            StringWriter io = null;
+            if (output)
+            {
+                io = new StringWriter();
+                io.WriteLine(Results.GetCSVHead());
+            }
+
+            List<Results> results = new List<Results>();
+            Console.WriteLine($"End Time = {endTime}");
+            Console.WriteLine();
+            Console.WriteLine($"{"Steps",9} {"Angle",24} {"Omega",24}");
+            Console.WriteLine($"{"",9} {"[deg]",24} {"[rad/s]",24}");
+            Quaternion q_expected = new Quaternion(0.45393475, -0.830921987, -0.064323953, 0.315236931);
+            Vector3 ω_expected = new Vector3(0.291136175, 5.089648811, -0.103511894);
+            do
+            {
+                mbd.Reset();
+                mbd.Run(endTime, n_steps);
+                Results result = new Results(mbd);
+                results.Add(result);
+                if (output)
+                {
+                    io.WriteLine(result.ToCSVRow());
+                }
+                var dq = result.Orientation * q_expected.Inverse();
+                var dw = result.Omega - ω_expected;
+                Console.WriteLine($"{result.Step,9} {dq.GetAxisAngle().angle / deg,24} {dw.Magnitude,24}");
+                n_steps /= 2;
+            } while (n_steps>1);
+
+            if (output)
+            {
+                File.WriteAllText("step-doe-cs.csv", io.ToString());
+
+                io.Close();
+            }
+
+            return results.AsReadOnly();
         }
 
-        public static string GetTableRow(Simulation simulation)
-        {
-            const string fmt = "{0,9:g} {1,9:F3}|{2,9:F5}{3,9:F5}{4,9:F5}|{5,9:F4}{6,9:F4}{7,9:F4}{8,9:F4}|{9,9:F5}{10,9:F5}{11,9:F5}|{12,10:F4}{13,10:F4}{14,10:F4}|{15,8:F4}";
-
-            int i = simulation.Step;
-            double time = simulation.Time;
-            double Jn = simulation.Contact.Jn;
-            (Vector3 position, Quaternion orientation, Vector3 momentum, Vector3 angular) = simulation.Current;
-            var line = new object[] {
-                i, time,
-                position.X, position.Y, position.Z,
-                orientation.Vector.X, orientation.Vector.Y, orientation.Vector.Z, orientation.Scalar,
-                momentum.X, momentum.Y, momentum.Z,
-                1000*angular.X, 1000*angular.Y, 1000*angular.Z,
-                Jn
-            };
-            return string.Format(fmt, line);
-        }
-
-        public static string GetCsvHeader()
-        {
-            var line = new object[] { "#", "time [s]",
-                "pos-x [m]", "pos-y [m]", "pos-z [m]",
-                "ori-x []", "ori-y []", "ori-z []", "ori-w []",
-                "mom-x [kg m/s]", "mom-y [kg m/s]", "mom-z [kg m/s]",
-                "ang-x [g m^2/s]", "ang-y [g m^2/s]", "ang-z [g m^2/s]",
-                "J [N s]" };
-            return string.Join(",", line);
-        }
-        public static string GetCsvRow(Simulation simulation)
-        {
-            int i = simulation.Step;
-            double time = simulation.Time;
-            double Jn = simulation.Contact.Jn;
-            (Vector3 position, Quaternion orientation, Vector3 momentum, Vector3 angular) = simulation.Current;
-            var line = new object[] {
-                i, time,
-                position.X, position.Y, position.Z,
-                orientation.Vector.X, orientation.Vector.Y, orientation.Vector.Z, orientation.Scalar,
-                momentum.X, momentum.Y, momentum.Z,
-                1000*angular.X, 1000*angular.Y, 1000*angular.Z,
-                Jn
-            };
-            return string.Join(",", line);
-        }
 
     }
 }

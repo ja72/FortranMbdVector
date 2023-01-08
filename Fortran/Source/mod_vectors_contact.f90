@@ -44,7 +44,7 @@
         
         ctx%origin = origin
         ctx%normal = normal/norm2(normal)
-        ctx%slip   = o_
+        ctx%slip   = vector3(0.0_wp, 0.0_wp, 0.0_wp)
         ctx%delta  = 0.0_wp
         ctx%v_imp  = 0.0_wp
         ctx%v_slip = 0.0_wp
@@ -55,7 +55,7 @@
     
     pure subroutine ctx_reset(ctx)
     class(contact_plane), intent(inout) :: ctx
-        ctx%slip   = o_
+        ctx%slip   = vector3(0.0_wp, 0.0_wp, 0.0_wp)
         ctx%delta  = 0.0_wp
         ctx%v_imp  = 0.0_wp
         ctx%v_slip = 0.0_wp
@@ -72,7 +72,7 @@
     type(vector3) :: p, L_b, omg, vee_b, pos_b
     type(quaternion) :: ori
     type(vector3) :: c, r_A, c_A, v_A, J_imp
-    type(matrix3) :: R, I_inv, cx, M_inv
+    type(matrix3) :: R, Rt, I_inv, cx, M_inv
     real(wp) :: m_eff, m_slip
             
         ! Body motions
@@ -81,16 +81,17 @@
         p = Y(8:10)
         L_b = Y(11:13)
         R = rot(ori)
+        Rt = rot(ori, inverse = .true.)
         c = R * rb%cg
-        I_inv = R*diag(1/rb%mmoi)*R%transpose()
+        I_inv = R*diag(1/rb%mmoi)*Rt
         omg = I_inv*(L_b - cross(c, p))
         vee_b = p/rb%mass - cross(omg, c)
         
         ! contact point on surface of shape
-        r_A = pos_b + c + rb%shape%nearest_point(ctx%normal, R)
+        r_A = pos_b + c + R*rb%shape%nearest_point(Rt*ctx%normal)
         ctx%delta = dot(ctx%normal, r_A - ctx%origin)
         ! clip contact point on plane
-        r_A = r_A - min(ctx%delta,0.0_wp)*ctx%normal
+        r_A = r_A - min(ctx%delta, 0.0_wp)*ctx%normal
                 
         ! get contact speed
         v_A = vee_b + cross(omg, r_A - pos_b)
@@ -113,7 +114,7 @@
             if( abs(ctx%v_slip) < tiny ) then
                 ! negligible sliding velocity
                 ! NOTE: sticking isn't implemented yet
-                ctx%slip = o_
+                ctx%slip = vector3(0.0_wp, 0.0_wp, 0.0_wp)
                 ctx%v_slip = 0.0_wp
                 ctx%Js = 0.0_wp
             else
@@ -138,7 +139,7 @@
                 L_b%x, L_b%y, L_b%z]
         else
             ! Contat not active
-            ctx%slip   = o_
+            ctx%slip   = vector3(0.0_wp, 0.0_wp, 0.0_wp)
             ctx%v_slip = 0.0_wp
             ctx%Jn     = 0.0_wp
             ctx%Js     = 0.0_wp

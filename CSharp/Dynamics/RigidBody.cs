@@ -37,7 +37,7 @@ namespace JA.Dynamics
             InitialVelocity = Vector3.Zero;
             InitialOmega = Vector3.Zero;
         }
-
+        public static bool NormalizeOrientation { get; set; } = true;
         public Shape Shape { get; }
         public double Mass { get; }
         public Vector3 Cg { get; }
@@ -47,13 +47,23 @@ namespace JA.Dynamics
         public Vector3 InitialVelocity { get; set; }
         public Vector3 InitialOmega { get; set; }
 
-        public double EstMaxTimeStep(int n_steps, double endTime = 1.0, double angularResolutionDegrees = 1.0)
+        public double EstMinTimeStep(int n_steps, double endTime)
         {
             double h = endTime / n_steps;
             double omg = InitialOmega.Magnitude;
             if (omg > tiny)
             {
-                h = Min(h,  angularResolutionDegrees * deg / omg);
+                h = Min(h,  0.25 * deg / omg);
+            }
+            return h;
+        }
+        public double EstMaxTimeStep(int n_steps, double endTime)
+        {
+            double h = endTime / n_steps;
+            double omg = InitialOmega.Magnitude;
+            if (omg > tiny)
+            {
+                h = Min(h,  15 * deg / omg);
             }
             return h;
         }
@@ -130,7 +140,10 @@ namespace JA.Dynamics
             //\vec{\tau}_{b}-\vec{v}_{b}\times\vec{p}
             //\end{Bmatrix}$$
 
-            Y.NormalizeOrientation();
+            if (NormalizeOrientation)
+            {
+                Y.NormalizeOrientation();
+            }
             (_, Quaternion orientation, Vector3 p, Vector3 L_b) = Y;
             Matrix3 R = orientation.ToRotation();
             Vector3 c = R * Cg;

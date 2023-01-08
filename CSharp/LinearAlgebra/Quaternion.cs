@@ -16,6 +16,8 @@ namespace JA.LinearAlgebra
         readonly (Vector3 v, double s) data;
 
         #region Factory
+        public Quaternion(double x, double y, double z, double w)
+            : this(new Vector3(x, y, z), w) { }
         public Quaternion(Vector3 vector, double scalar)
         {
             this.data = (vector, scalar);
@@ -127,11 +129,12 @@ namespace JA.LinearAlgebra
         #endregion
 
         #region Algebra
-
+        public Quaternion Conjugate() => Conjugate(this);
+        public Quaternion Inverse() => Inverse(this);
         public static Quaternion Normalize(Quaternion quaternion)
         {
             double m2 = quaternion.MagnitudeSquared;
-            if (m2 > 0 && m2 != 1)
+            if (m2 > 0 && Math.Abs(m2-1) > tiny)
             {
                 return Multiply(quaternion, 1 / Math.Sqrt(m2));
             }
@@ -190,6 +193,16 @@ namespace JA.LinearAlgebra
         {
             return $"<{Vector.ToString(format, provider)}|{Scalar.ToString(format, provider)}>";
         }
+        public string ToCSVRow() => string.Join(",", Vector.ToCSVRow(), Scalar);
+        public static string GetCSVHead(string prefix = null, string subscript=null)
+        {
+            if (string.IsNullOrEmpty(prefix))
+            {
+                prefix = string.Empty;
+            }
+            return string.Join(",", Vector3.GetCSVHead(prefix, subscript), Common.VariableName( $"{prefix}w", subscript));
+        }
+
         #endregion
 
         #region Equality

@@ -62,7 +62,7 @@
     call body%set_pose(pos, ori)
     call body%set_motion(vee, omg)
     
-    floor = contact_plane(o_, k_, eps, mu)
+    floor = contact_plane(vector3(0.0_wp, 0.0_wp, 0.0_wp), vector3(0.0_wp, 0.0_wp, 1.0_wp), eps, mu)
     
     mbd = simulation(body,floor,gravity,sim_step_taken)
     
@@ -220,6 +220,30 @@
     
     write (unit, fmt) i, t, Y(1:3), Y(4:7), Y(8:10), 1000*Y(11:13), Jn
     end subroutine
-
+    
     end program FortranMbdVector
+    
+    subroutine sim_run_and_export(gee) BIND(C, NAME='sim_export') !, n_steps, t_end, f_export) BIND(C, NAME='sim_export')
+    !DEC$ ATTRIBUTES DLLEXPORT :: sim_run_and_export
+    !!DIR$ ATTRIBUTES VALUE :: n_steps, t_end
+    use iso_c_binding
+    use mod_vectors_simulation
+    implicit none
+    
+    real(wp), intent(in) :: gee(3)
+    !integer, intent(in) :: n_steps
+    !real(wp), intent(in) :: t_end
+    !character(len=*), intent(in) :: f_export
+    type(vector3) :: gravity
+    !type(rigid_body) :: body
+    !type(contact_plane) :: floor
+    
+    gravity = gee
+    
+    print *, gravity
+!    print *, t_end, n_steps
+!    print *, f_export
+    
+    end subroutine
+    
 

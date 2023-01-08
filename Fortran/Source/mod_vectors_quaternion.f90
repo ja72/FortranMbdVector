@@ -2,7 +2,7 @@
     use mod_vectors_matrix3
     implicit none
     
-    type :: quaternion
+    type :: quaternion        
         type(vector3) :: vector
         real(wp) :: scalar
     contains
@@ -63,7 +63,7 @@
         module procedure :: q_normalize
     end interface
     
-    type(quaternion), parameter :: q_eye = quaternion(o_, 1.0_wp)
+    type(quaternion), parameter :: q_eye = quaternion(vector3(0.0_wp,0.0_wp,0.0_wp), 1.0_wp)
         
     contains
         

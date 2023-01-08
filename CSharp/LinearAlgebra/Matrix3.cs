@@ -6,7 +6,10 @@ using System.ComponentModel;
 
 namespace JA.LinearAlgebra
 {
+    using static Math;
     using static DoubleConstants;
+    using static LinearAlgebra;
+
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public readonly struct Matrix3 :
         ICollection<double>,
@@ -28,6 +31,7 @@ namespace JA.LinearAlgebra
         }
         public static readonly Matrix3 Zero = new Matrix3(0, 0, 0, 0, 0, 0, 0, 0, 0);
         public static readonly Matrix3 Identity = new Matrix3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+        public static readonly Matrix3 Ones = new Matrix3(1, 1, 1, 1, 1, 1, 1, 1, 1);
         public static Matrix3 FromRows(Vector3 row1, Vector3 row2, Vector3 row3)
             => new Matrix3(
                 row1.X, row1.Y, row1.Z,
@@ -46,7 +50,13 @@ namespace JA.LinearAlgebra
             => new Matrix3(a11, a12, a13, a12, a22, a23, a13, a23, a33);
         public static Matrix3 Diagonal(Vector3 vector)
             => Diagonal(vector.X, vector.Y, vector.Z);
-
+        public static Matrix3 RandomFull(double minValue = 0, double maxValue = 1) => new Matrix3(
+                Random(minValue, maxValue), Random(minValue, maxValue), Random(minValue, maxValue),
+                Random(minValue, maxValue), Random(minValue, maxValue), Random(minValue, maxValue),
+                Random(minValue, maxValue), Random(minValue, maxValue), Random(minValue, maxValue));
+        public static Matrix3 RandomSymm(double minValue = 0, double maxValue = 1)
+            => Symmetric(Random(minValue, maxValue), Random(minValue, maxValue), Random(minValue, maxValue),
+                        Random(minValue, maxValue), Random(minValue, maxValue), Random(minValue, maxValue));
         public static Matrix3 RotationAboutX(double angle)
         {
             double c = Math.Cos(angle), s = Math.Sin(angle);
@@ -88,6 +98,15 @@ namespace JA.LinearAlgebra
             var kx = axis.CrossOp();
             var neg_kxkx = LinearAlgebra.Mmoi(axis);
             return 1 + Math.Sin(angle) * kx - (1 - Math.Cos(angle)) * neg_kxkx;
+        }
+        public double MaxValue() => Max(GetRow(0).MaxValue(), Max(GetRow(1).MaxValue(), GetRow(2).MaxValue()));
+        public double MinValue() => Min(GetRow(0).MinValue(), Min(GetRow(1).MinValue(), GetRow(2).MinValue()));
+
+        public Matrix3 UnderflowToZero(double scale = 1)
+        {
+            var m = MaxValue() - MinValue();
+            var s = scale * m * Ones;
+            return (this + s) - s;
         }
         #endregion
 
@@ -237,8 +256,93 @@ namespace JA.LinearAlgebra
         public static Matrix3 operator !(Matrix3 b) => b.Inverse();
         public static Vector3 operator /(Vector3 a, Matrix3 b) => b.Solve(a);
         public static Matrix3 operator /(Matrix3 a, Matrix3 b) => b.Solve(a);
+        #endregion
+
+        #region Eigenvalues
+        /// <summary>
+        /// Calculates the three eigenvalues analytically.
+        /// </summary>
+        /// <remarks>
+        /// Code taken from:
+        /// https://www.mpi-hd.mpg.de/personalhomes/globes/3x3/index.html
+        /// </remarks>
+        /// <returns>A vector containing the three eigenvalues.</returns>
+        public Vector3 GetEigenValues()
+        {
+            //      Determine coefficients of characteristic polynomial. We write
+            //      | A   D   F  |
+            // A =  | D*  B   E  |
+            //      | F*  E*  C  |
+
+            var de = data.a12 * data.a23;
+            var dd = data.a12 * data.a12;
+            var ee = data.a23 * data.a23;
+            var ff = data.a13 * data.a13;
+            var m = data.a11 + data.a22 + data.a33;
+            var c1 = (data.a11 * data.a22 + data.a11 * data.a33 + data.a22 * data.a33) - (dd + ee + ff);
+            var c0 = data.a33 * dd + data.a11 * ee + data.a22 * ff - data.a11 * data.a22 * data.a33 - 2.0 * data.a13 * de;
+
+            var p = m * m - 3.0 * c1;
+            var q = m * (p - (3.0 / 2.0) * c1) - (27.0 / 2.0) * c0;
+            var sqrt_p =  Math.Sqrt(Math.Abs(p));
+
+            var sqrt_z =  Math.Sqrt(Math.Abs(27.0 * (0.25 * c1 * c1 * (p - c1) + c0 * (q + 27.0 / 4.0 * c0))));
+            var phi = (1 / 3.0) *  Math.Atan2(sqrt_z, q);
+
+            var c = sqrt_p *  Math.Cos(phi);
+            var s = sqrt_p *  Math.Abs(Math.Sin(phi))/ Math.Sqrt(3);
+
+            var w = (1 / 3.0) * (m - c);
+
+            // sort the eigenvalues
+            if (c >= s)
+            {
+                return new Vector3(
+                    w - s,
+                    w + s,
+                    w + c);
+            }
+            else if (c >= -s)
+            {
+                return new Vector3(
+                    w - s,
+                    w + c,
+                    w + s);
+            }
+            else
+            {
+                return new Vector3(
+                    w + c,
+                    w - s,
+                    w + s);
+            }
+        }
+
+        public Matrix3 GetDiagonalEigenvalues()
+            => Diagonal(GetEigenValues());
+
+        public Matrix3 GetEigenVectors() => GetEigenVectors(GetEigenValues());
+        public Matrix3 GetEigenVectors(Vector3 eigenValues)
+        {
+            Vector3 ev1 = GetEigenVector(eigenValues.X).ToUnit();
+            Vector3 ev2 = GetEigenVector(eigenValues.Y).ToUnit();
+            Vector3 ev3 = GetEigenVector(eigenValues.Z).ToUnit();
+
+            return FromColumns(ev1, ev2, ev3);
+        }
+        Vector3 GetEigenVector(double w)
+        {
+            return new Vector3(
+                  data.a12 * (data.a23 - data.a33 + w) - data.a13 * (data.a22 - data.a23 - w)
+                + data.a22 * (data.a33 - w) - data.a23 * data.a23 - w * (data.a33 - w),
+                -data.a11 * (data.a23 - data.a33 + w) + data.a12 * (data.a13 - data.a33 + w)
+                - data.a13 * data.a13 + data.a13 * data.a23 + w * (data.a23 - data.a33 + w),
+                  data.a11 * (data.a22 - data.a23 - w) - data.a12 * data.a12 + data.a12 * (data.a13 + data.a23)
+                + data.a13 * (w - data.a22) - w * (data.a22 - data.a23 - w));
+        }
 
         #endregion
+
 
         #region Formatting
         public override string ToString() => ToString("g");

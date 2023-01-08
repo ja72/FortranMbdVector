@@ -2,7 +2,7 @@
     use mod_vectors_vector3
     implicit none
 
-    type :: matrix3
+    type :: matrix3        
         real(wp) :: a11,a21,a31, a12,a22,a32, a13,a23,a33
     contains
     procedure :: to_array => mat3_to_array
@@ -12,7 +12,7 @@
     procedure :: row => mat3_get_row
     procedure :: transpose => mat3_transpose
     end type
-
+    !
     type :: symmatrix3
         real(wp) :: a11, a21, a31, a22, a32, a33
     contains
@@ -23,12 +23,11 @@
     procedure :: row => smat3_get_row
     procedure :: transpose => smat3_transpose
     end type
-    
+    !
     interface real
         module procedure :: mat3_to_array, smat3_to_array
     end interface
-    
-
+    !
     interface assignment (=)
     module procedure :: asgn_mat3_array, asgn_array_mat3
     module procedure :: asgn_smat3_array, asgn_array_smat3
@@ -36,7 +35,7 @@
     module procedure :: asgn_smat3_matrix, asgn_matrix_smat3
     module procedure :: asgn_mat3_smat3
     end interface
-
+    
     interface matrix3
     module procedure :: mat3_from_array, mat3_from_matrix
     module procedure :: smat3_to_mat3
@@ -45,7 +44,7 @@
     module procedure :: smat3_from_array, smat3_from_matrix
     module procedure :: mat3_to_smat3
     end interface
-
+    
     interface operator (+)
     module procedure :: mat3_add, smat3_add
     end interface
@@ -76,7 +75,10 @@
     interface mmoi
     module procedure :: vec3_mmoi
     end interface
-
+    interface transpose
+        module procedure :: mat3_transpose, smat3_transpose
+    end interface
+    
     type(matrix3), parameter :: zeros_ = matrix3(0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp)
     type(matrix3), parameter :: eye_ = matrix3(1.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp)
 
@@ -87,13 +89,13 @@
     real(wp), intent(in) :: a(9)
     m = mat3_from_array(a)
     end subroutine
-
+    
     pure subroutine asgn_mat3_matrix(m,a)
     type(matrix3), intent(out) :: m
     real(wp), intent(in) :: a(3,3)
     m = mat3_from_matrix(a)
     end subroutine
-
+    
     pure subroutine asgn_array_mat3(a,m)
     real(wp), intent(out) :: a(9)
     type(matrix3), intent(in) :: m
@@ -105,7 +107,7 @@
     type(matrix3), intent(in) :: m
     a = mat3_to_matrix(m)
     end subroutine
-
+    
     pure subroutine asgn_smat3_array(m,a)
     type(symmatrix3), intent(out) :: m
     real(wp), intent(in) :: a(6)
@@ -117,31 +119,31 @@
     real(wp), intent(in) :: a(3,3)
     m = smat3_from_matrix(a)
     end subroutine
-
+    
     pure subroutine asgn_array_smat3(a,m)
     real(wp), intent(out) :: a(6)
     type(symmatrix3), intent(in) :: m
     a = smat3_to_array(m)
     end subroutine
-
+    
     pure subroutine asgn_mat3_smat3(m,s)
     type(matrix3), intent(out) :: m
     type(symmatrix3), intent(in) :: s
     m = smat3_to_matrix(s)
     end subroutine
-
+    
     pure subroutine asgn_matrix_smat3(a,m)
     real(wp), intent(out) :: a(3,3)
     type(symmatrix3), intent(in) :: m
     a = smat3_to_matrix(m)
     end subroutine
-
+    
     pure function mat3_from_matrix(a) result(m)
     real(wp), intent(in) :: a(3,3)
     type(matrix3) :: m
     m = mat3_from_array( reshape(a, [9]) )
     end function
-
+    
     pure function mat3_from_array(a) result(m)
     real(wp), intent(in) :: a(9)
     type(matrix3) :: m
@@ -149,7 +151,7 @@
         a(4), a(5), a(6), &
         a(7), a(8), a(9))
     end function
-
+    
     pure function smat3_from_matrix(a) result(m)
     real(wp), intent(in) :: a(3,3)
     type(symmatrix3) :: m
@@ -157,13 +159,13 @@
         (a(3,1)+a(3,1))/2, a(2,2), &
         (a(2,3)+a(3,2))/2, a(3,3) )
     end function
-
+    
     pure function smat3_from_array(a) result(m)
     real(wp), intent(in) :: a(6)
     type(symmatrix3) :: m
     m = symmatrix3(a(1),a(2),a(3),a(4),a(5),a(6) )
     end function
-
+    !
     pure function mat3_to_array(m) result(a)
     real(wp) :: a(9)
     class(matrix3), intent(in) :: m
@@ -171,46 +173,50 @@
         m%a12, m%a22, m%a32, &
         m%a13, m%a23, m%a33]
     end function
-
+    !
     pure function mat3_to_matrix(m) result(a)
     real(wp) :: a(3,3)
     class(matrix3), intent(in) :: m
     a = reshape( [m%a11, m%a21, m%a31, m%a12, m%a22, m%a32, m%a13, m%a23, m%a33], [3,3] )
     end function
-
-    pure function mat3_to_smat3(m) result(a)
+    !
+    pure function mat3_to_smat3(m) result(s)
     class(matrix3), intent(in) :: m
-    type(symmatrix3) :: a
-    a = symmatrix3( [ m%a11, (m%a12+m%a21)/2, (m%a13+m%a31)/2, &
-        m%a22, (m%a23+m%a32)/2, m%a33] )
+    type(symmatrix3) :: s
+    s%a11 = m%a11
+    s%a22 = m%a22
+    s%a33 = m%a33
+    s%a21 = (m%a12+m%a21)/2
+    s%a31 = (m%a13+m%a31)/2
+    s%a32 = (m%a23+m%a32)/2
     end function
-    
-    pure function smat3_to_mat3(m) result(a)
-    class(symmatrix3), intent(in) :: m
-    type(matrix3) :: a
-    a%a11 = m%a11
-    a%a22 = m%a22
-    a%a33 = m%a33
-    a%a12 = m%a21
-    a%a13 = m%a31
-    a%a23 = m%a32
-    a%a21 = m%a21
-    a%a31 = m%a31
-    a%a32 = m%a32
+    !
+    pure function smat3_to_mat3(s) result(m)
+    class(symmatrix3), intent(in) :: s
+    type(matrix3) :: m
+    m%a11 = s%a11
+    m%a22 = s%a22
+    m%a33 = s%a33
+    m%a12 = s%a21
+    m%a13 = s%a31
+    m%a23 = s%a32
+    m%a21 = s%a21
+    m%a31 = s%a31
+    m%a32 = s%a32
     end function
-
+    !
     pure function smat3_to_array(m) result(a)
     real(wp) :: a(6)
     class(symmatrix3), intent(in) :: m
     a = [m%a11, m%a21, m%a31, m%a22, m%a32, m%a33]
     end function
-
+    !
     pure function smat3_to_matrix(m) result(a)
     real(wp) :: a(3,3)
     class(symmatrix3), intent(in) :: m
     a = reshape( [m%a11, m%a21, m%a31, m%a21, m%a22, m%a32, m%a31, m%a32, m%a33], [3,3] )
     end function
-    
+    !
     pure function smat3_from_diag(d) result(m)
     real(wp), intent(in) :: d(3)
     type(symmatrix3) :: m
@@ -282,7 +288,7 @@
     c%a32 = a*b%a32
     c%a33 = a*b%a33
     end function
-
+    
     pure function mat3_scale2(b,a) result(c)
     type(matrix3), intent(in) :: b
     real(wp), intent(in) :: a
@@ -298,7 +304,7 @@
     c%a32 = a*b%a32
     c%a33 = a*b%a33
     end function
-
+    
     pure function mat3_div(a,b) result(c)
     type(matrix3), intent(in) :: a
     real(wp), intent(in) :: b
@@ -314,7 +320,7 @@
     c%a32 = a%a32/b
     c%a33 = a%a33/b
     end function
-
+    
     pure function mat3_product_vec3(a,b) result(c)
     type(matrix3), intent(in) :: a
     type(vector3), intent(in) :: b
@@ -324,7 +330,7 @@
     c%y = a%a21*b%x + a%a22*b%y + a%a23*b%z
     c%z = a%a31*b%x + a%a32*b%y + a%a33*b%z
     end function
-
+    
     pure function vec3_product_mat3(b,a) result(c)
     type(vector3), intent(in) :: b
     type(matrix3), intent(in) :: a
@@ -440,7 +446,7 @@
     c%y = a%a21*b%x + a%a22*b%y + a%a32*b%z
     c%z = a%a31*b%x + a%a32*b%y + a%a33*b%z
     end function
-
+    
     pure function mat3_product_smat3(a,b) result(c)
     type(matrix3), intent(in) :: a
     type(symmatrix3), intent(in) :: b
@@ -486,7 +492,7 @@
     c%a32 = a%a31*b%a21 + a%a32*b%a22 + a%a33*b%a32
     c%a33 = a%a31*b%a31 + a%a32*b%a32 + a%a33*b%a33    
     end function
-
+    
     pure function vec3_cross_matrix(a) result(m)
     type(vector3), intent(in) :: a
     type(matrix3) :: m
@@ -500,7 +506,7 @@
     m%a32 = a%x
     m%a33 = 0.0_wp
     end function
-
+    
     pure function vec3_outer(a,b) result(m)
     type(vector3), intent(in) :: a,b
     type(matrix3) :: m
@@ -514,20 +520,20 @@
     m%a32 = a%z*b%y
     m%a33 = a%z*b%z
     end function
-
+    
     pure function vec3_mmoi(v, scale) result(m)
     type(vector3), intent(in) :: v
     real(wp), intent(in), optional :: scale
     type(matrix3) :: m
     real(wp) :: xx,yy,zz,xy,zx,yz
     real(wp) :: s
-
+    
     !tex: Inertia matrix
     ! $$-[\vec{v}\times][\vec{v}\times] = \begin{bmatrix}y^{2}+z^{2} & -xy & -zx\\
     !-xy & x^{2}+z^{2} & -yz\\
     !-zx & -yz & x^{2}+z^{2}
     !\end{bmatrix}$$
-
+    
     if(present(scale) ) then
         s = scale
     else
@@ -540,7 +546,7 @@
     xy = -s*v%x*v%y
     yz = -s*v%y*v%z
     zx = -s*v%z*v%x
-
+    
     m%a11 = yy+zz
     m%a22 = xx+zz
     m%a33 = yy+xx
@@ -550,9 +556,9 @@
     m%a21 = xy
     m%a31 = zx
     m%a32 = yz
-
+    
     end function
-
+    
     pure function mat3_transpose(m) result(w)
     class(matrix3), intent(in) :: m
     type(matrix3) :: w
@@ -566,13 +572,13 @@
     w%a31 = m%a13
     w%a32 = m%a23
     end function
-
+    
     pure function smat3_transpose(m) result(w)
     class(symmatrix3), intent(in) :: m
     type(symmatrix3) :: w
     w = m
     end function
-
+    !
     pure function mat3_get_column(m, col) result(v)
     class(matrix3), intent(in) :: m
     integer, intent(in) :: col
@@ -585,10 +591,10 @@
     case(3)
         v = vector3(m%a13, m%a23, m%a33)
     case default
-        v = o_
+        error stop "column must be between 1-3."
     end select
     end function
-    
+    !
     pure function mat3_get_row(m, row) result(v)
     class(matrix3), intent(in) :: m
     integer, intent(in) :: row
@@ -601,10 +607,10 @@
     case(3)
         v = vector3(m%a31, m%a32, m%a33)
     case default
-        v = o_
+        error stop "row must be between 1-3."
     end select
     end function
-
+    !
     pure function smat3_get_column(m, col) result(v)
     class(symmatrix3), intent(in) :: m
     integer, intent(in) :: col
@@ -617,7 +623,7 @@
     case(3)
         v = vector3(m%a31, m%a32, m%a33)
     case default
-        v = o_
+        error stop "column must be between 1-3."
     end select
     end function
     
@@ -633,7 +639,7 @@
     case(3)
         v = vector3(m%a31, m%a32, m%a33)
     case default
-        v = o_
+        error stop "row must be between 1-3."
     end select
     end function
     

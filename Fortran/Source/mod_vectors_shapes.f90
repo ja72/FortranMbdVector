@@ -37,14 +37,13 @@
     end interface
 
     abstract interface
-        pure function nearest_point_function(shape, direction, rotation) result(point)
+        pure function nearest_point_function(shape, direction) result(point)
         ! Finds the point of the surface of the body closest to the plane with specified
         ! normal direction. The point is given relative to the center of the body in
         ! world coordinates.
         import
         class(shapes), intent(in) :: shape
         type(vector3), intent(in) :: direction
-        type(matrix3), intent(in) :: rotation
         type(vector3) :: point
         end function
     end interface
@@ -66,7 +65,7 @@
             V = 4*pi*r**3/3
             !tex: MMMOI of sphere $I_{\rm all}=\frac{2}{5} m r^2$
             vmmoi = [ 2*r**2/5, 2*r**2/5, 2*r**2/5 ]
-            s = sphere_shape(V, o_, vmmoi, r)
+            s = sphere_shape(V, vector3(0.0_wp,0.0_wp,0.0_wp), vmmoi, r)
         case (cylinder)                
             l = dims(1)
             r = dims(2)
@@ -74,11 +73,11 @@
             V = l*pi*r**2
             !tex: MMMOI of cylinder $I_{\rm zz}=\frac{m}{2} r^2$, $I_{\rm xx}=\frac{m}{4} r^2 + \frac{m}{12} \ell^2$
             vmmoi = [l**2/12 + r**2/4, l**2/12 + r**2/4, r**2/2]
-            s = cylinder_shape(V, o_, vmmoi, l, r)
+            s = cylinder_shape(V, vector3(0.0_wp,0.0_wp,0.0_wp), vmmoi, l, r)
         end select
     end function
 
-    pure function nearest_point_sphere(shape, direction, rotation) result(point)
+    pure function nearest_point_sphere(shape, direction) result(point)
     ! Find the point of the surface of the body closest to the plane with specified
     ! normal direction. The point is given relative to the center of the body in
     ! world coordinates.
@@ -86,13 +85,12 @@
     ! the nearest point on the sphere to the plane is [0,0,-r] 
     class(sphere_shape), intent(in) :: shape
     type(vector3), intent(in) :: direction
-    type(matrix3), intent(in) :: rotation
     type(vector3) :: point
         !tex: Point $\vec{\rm pos} = -r\, \vec{e}$
         point = -direction * shape%radius
     end function
     
-    pure function nearest_point_cylinder(shape, direction, rotation) result(point)
+    pure function nearest_point_cylinder(shape, direction) result(point)
     ! Find the point of the surface of the body closest to the plane with specified
     ! normal direction. The point is given relative to the center of the body in
     ! world coordinates.
@@ -102,26 +100,24 @@
     ! cap is chosen by the dot product of the local z-axis to the plane.
     class(cylinder_shape), intent(in) :: shape
     type(vector3), intent(in) :: direction
-    type(matrix3), intent(in) :: rotation
     type(vector3) :: point
     real(wp) :: d,l,phi,alp,x,y
     
-        !tex: Point $\vec{\rm pos} = \mathbf{R}\, \pmatrix{
+        !tex: Point $\vec{\rm pos} = \pmatrix{
         !  \frac{d}{2} \cos \varphi \\ 
         !  \frac{d}{2} \sin \varphi \\ 
         !  \pm \frac{\ell}{2} }$
         d = shape%radius*2
         l = shape%length
-        alp = -sign(1.0, dot(direction, rotation%column(3)))
-        x = dot(direction, rotation%column(1))
-        y = dot(direction, rotation%column(2))
+        alp = -sign(1.0, direction%z)
+        x = direction%y
+        y = direction%z
         if( abs(x)<=tiny .and. abs(y)<=tiny) then
             point = vector3(0.0_wp, 0.0_wp, (l/2)*alp)
         else
             phi = atan2(y, x) - pi
             point = vector3((d/2)*cos(phi), (d/2)*sin(phi), (l/2)*alp)
         end if
-        point = rotation * point
         
     end function
     

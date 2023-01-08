@@ -39,10 +39,10 @@
         rb%mass = mass
         rb%cg = cg
         rb%mmoi = mmoi
-        rb%initial_position = o_
-        rb%initial_orientation = q_eye
-        rb%initial_velocity = o_
-        rb%initial_omega = o_
+        rb%initial_position = vector3(0.0_wp,0.0_wp,0.0_wp)
+        rb%initial_orientation = quaternion(vector3(0.0_wp,0.0_wp,0.0_wp), 0.0_wp)
+        rb%initial_velocity = vector3(0.0_wp,0.0_wp,0.0_wp)
+        rb%initial_omega = vector3(0.0_wp,0.0_wp,0.0_wp)
     end function
     
     function rb_from_shape(s, density, mass) result(rb)

@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using JA.Dynamics;
 
 namespace JA.Geomtery
 {
@@ -11,7 +6,6 @@ namespace JA.Geomtery
 
     using static Math;
     using static DoubleConstants;
-    using static LinearAlgebra.LinearAlgebra;
 
     public enum KnownShape
     {
@@ -50,7 +44,13 @@ namespace JA.Geomtery
         public double Volume { get; }
         public Vector3 Center { get; }
         public (double v_1, double v_2, double v_3) Vmmoi { get; }
-        public abstract Vector3 GetNearestPoint(Vector3 direction, Matrix3 rotation);
+        /// <summary>
+        /// Gets the nearest point on the surface of the body to a plane far away with normal
+        /// direction pointing towards the body.
+        /// </summary>
+        /// <param name="direction">The plane normal direction in body coordinates.</param>
+        /// <returns>A point on the body in body coordinates</returns>
+        public abstract Vector3 GetNearestPoint(Vector3 direction);
     }
 
     public class SphereShape : Shape
@@ -73,7 +73,7 @@ namespace JA.Geomtery
         public double Radius { get; }
         public double Diameter { get => 2*Radius; }
 
-        public override Vector3 GetNearestPoint(Vector3 direction, Matrix3 rotation)
+        public override Vector3 GetNearestPoint(Vector3 direction)
         {
             //tex: Point $\vec{\rm pos} = -r\, \vec{e}$
             return -direction * Radius;
@@ -100,27 +100,27 @@ namespace JA.Geomtery
         public double Radius { get; }
         public double Diameter { get => 2*Radius; }
 
-        public override Vector3 GetNearestPoint(Vector3 direction, Matrix3 rotation)
+        public override Vector3 GetNearestPoint(Vector3 direction)
         {
-            //tex: Point $\vec{\rm pos} = \mathbf{R}\, \pmatrix{
+            //tex: Point $\vec{\rm pos} = \pmatrix{
             //  \frac{d}{2} \cos \varphi \\ 
             //  \frac{d}{2} \sin \varphi \\ 
             //  \pm \frac{\ell}{2} }$
             double d = Diameter;
             double l = Length;
-            double alp = -Sign(1.0, Dot(direction, rotation.GetColumn(2)));
-            double x = Dot(direction, rotation.GetColumn(0));
-            double y = Dot(direction, rotation.GetColumn(1));
+            double alp = -Sign(1.0, direction.Z);
+            double x = direction.X;
+            double y = direction.Y;
             if (Abs(x) <= tiny && Abs(y) <= tiny)
             {
                 Vector3 point = new Vector3(0, 0, (l / 2) * alp);
-                return rotation * point;
+                return point;
             }
             else
             {
                 double φ = Atan2(y, x) - pi;
                 Vector3 point = new Vector3((d / 2) * Cos(φ), (d / 2) * Sin(φ), (l / 2) * alp);
-                return rotation * point;
+                return point;
             }
         }
     }

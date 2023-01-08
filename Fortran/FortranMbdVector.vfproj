@@ -4,7 +4,7 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|x64">
-				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/Qfma" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" PreprocessorDefinitions="DEBUG" WarnDeclarations="true" WarnUndeclaredExternals="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnUncalled="true" WarnShape="true" WarnInterfaces="true" LocalSavedScalarsZero="true" InitArrays="true" ExtendSinglePrecisionConstants="true" EmitSourceListing="true" BuildDependencies="true" Traceback="true" BoundsCheck="true" ArrayShapeCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" PreprocessorDefinitions="DEBUG" F2003Semantics="true" WarnDeclarations="true" WarnUndeclaredExternals="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnUncalled="true" WarnShape="true" WarnInterfaces="true" AlignSEQUENCE="true" LocalSavedScalarsZero="true" InitArrays="true" ExtendSinglePrecisionConstants="true" StringLengthArgPassing="strLenArgsMixed" EmitSourceListing="true" BuildDependencies="true" Traceback="true" BoundsCheck="true" ArrayShapeCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -14,8 +14,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Parallelization="true" WarnDeclarations="true" WarnUndeclaredExternals="true" WarnShape="true" WarnInterfaces="true" LocalSavedScalarsZero="true" InitArrays="true" ExtendSinglePrecisionConstants="true" EmitSourceListing="true" BuildDependencies="true" RuntimeLibrary="rtMultiThreadedDLL"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/libs:static /threads" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Parallelization="true" F2003Semantics="true" WarnDeclarations="true" WarnUndeclaredExternals="true" WarnShape="true" WarnInterfaces="true" LocalSavedScalarsZero="true" InitArrays="true" ExtendSinglePrecisionConstants="true" EmitSourceListing="true" BuildDependencies="true" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalYes" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole" TypeLibraryFile="FortranMbd"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -27,12 +27,12 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<Filter Name="Geometry">
-		<File RelativePath=".\Source\mod_vectors_geometry.f90"/></Filter>
 		<Filter Name="Dynamics">
 		<File RelativePath=".\Source\mod_vectors_contact.f90"/>
 		<File RelativePath=".\Source\mod_vectors_rigid_body.f90"/>
 		<File RelativePath=".\Source\mod_vectors_simulation.f90"/></Filter>
+		<Filter Name="Geometry">
+		<File RelativePath=".\Source\mod_vectors_shapes.f90"/></Filter>
 		<Filter Name="LinearAlgebra">
 		<File RelativePath=".\Source\mod_vectors_matrix3.f90"/>
 		<File RelativePath=".\Source\mod_vectors_quaternion.f90"/>
